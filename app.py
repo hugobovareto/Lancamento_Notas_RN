@@ -8,7 +8,13 @@ import plotly.graph_objects as go
 # 🔄 COMPARTILHAR DADOS ENTRE PÁGINAS
 @st.cache_data(ttl=300)
 def carregar_dados():
-    return pd.read_parquet('dados_tratados/df_EF_EM_bncc_censo.parquet')
+    df = pd.read_parquet('dados_tratados/df_EF_EM_bncc_censo.parquet')
+    # Remover colunas que não serão usadas já na função de carregamento
+    df.drop(columns=['CPF PESSOA', 'NOME PESSOA', 'MÉDIA ANUAL', 'EXAME FINAL', 
+                     'AVALIAÇÃO ESPECIAL', 'MÉDIA FINAL', 'MEDIA_1_2_BIM', 'STATUS'], 
+            inplace=True, errors='ignore')  # errors='ignore' evita erro se coluna não existir
+    return df
+
 
 # CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Lançamento de Notas", 
@@ -23,8 +29,6 @@ if 'df' not in st.session_state:
 # Acessar dados
 df = st.session_state.df
 
-# Retirar colunas que não serão usadas
-df.drop(columns=['CPF PESSOA', 'NOME PESSOA', 'MÉDIA ANUAL', 'EXAME FINAL', 'AVALIAÇÃO ESPECIAL', 'MÉDIA FINAL', 'MEDIA_1_2_BIM', 'STATUS'], inplace=True)
 
 # 🔄 COMPARTILHAR FILTROS ENTRE PÁGINAS
 # Inicializar session state para filtros se não existir
