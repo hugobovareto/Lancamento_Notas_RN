@@ -4,9 +4,12 @@ import pandas as pd
 import time
 import plotly.express as px
 import plotly.graph_objects as go
+import gc
+import psutil
+import os
 
 # 🔄 COMPARTILHAR DADOS ENTRE PÁGINAS
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=None)
 def carregar_dados():
     # Especificar tipos de dados para otimização de memória
     dtypes = {
@@ -42,7 +45,7 @@ def carregar_dados():
     # pré-criar a coluna formatada uma vez
     df['ESCOLA_FORMATADA'] = df['ESCOLA'] + " (cód. Inep: " + df['INEP ESCOLA'] + ")"
 
-    
+    gc.collect() # Forçar limpeza de memória após carregar os dados
     return df
 
 
@@ -50,7 +53,7 @@ def carregar_dados():
 st.set_page_config(page_title="Lançamento de Notas", 
                    layout="wide",
                    page_icon="📈")
-
+st.cache_data.clear()
 
 # Carregar os dados
 df = carregar_dados()
@@ -82,7 +85,6 @@ if selected_direc != st.session_state.filtro_direc:
     st.session_state.filtro_escola = 'Todas'
 
 # 2. Escolher o Município (usando cache para opções)
-@st.cache_data(show_spinner=False)
 def get_municipio_options(_df, direc):
     if direc != 'Todas':
         df_temp = _df[_df['DIREC'] == direc]
@@ -101,9 +103,8 @@ if selected_municipio != st.session_state.filtro_municipio:
     st.session_state.filtro_escola = 'Todas'
 
 # 3. Escolher a Escola (usando cache para opções)
-@st.cache_data(show_spinner=False)
 def get_escola_options(_df, direc, municipio):
-    df_temp = _df.copy()
+    df_temp = _df
     if direc != 'Todas':
         df_temp = df_temp[df_temp['DIREC'] == direc]
     if municipio != 'Todos':
@@ -124,9 +125,8 @@ if selected_escola_formatada != st.session_state.filtro_escola:
     st.session_state.filtro_escola = selected_escola_formatada
 
 # APLICAR TODOS OS FILTROS DE UMA VEZ (COM CACHE)
-@st.cache_data(show_spinner=False)
 def aplicar_filtros(_df, direc, municipio, escola):
-    df_filtrado = _df.copy()
+    df_filtrado = _df
     
     if direc != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['DIREC'] == direc]
@@ -147,6 +147,7 @@ def aplicar_filtros(_df, direc, municipio, escola):
 
 df_filtered = aplicar_filtros(df, selected_direc, selected_municipio, selected_escola_formatada)
 
+gc.collect() # Forçar coleta de lixo para liberar memória
 
 # Botão para limpar todos os filtros
 def resetar_filtros():
@@ -665,7 +666,7 @@ fig_direc_3bim.update_yaxes(range=[0, 100])
 
 # Exibir gráfico
 st.plotly_chart(fig_direc_3bim, use_container_width=True)
-
+gc.collect() # Forçar coleta de lixo para liberar memória
 
 # Mostrar tabela com dados detalhados e formatação
 with st.expander("📋 Ver Dados Detalhados por DIREC"):
@@ -790,4 +791,16 @@ except Exception as e:
     st.info("Tente usar filtros mais restritivos para reduzir a quantidade de dados.")
 
 
+
+# Verificar uso de memória
+process = psutil.Process(os.getpid())
+mem_mb = process.memory_info().rss / 1024 / 1024
+
+st.sidebar.metric("💾 Uso de memória", f"{mem_mb:.1f} MB")
+
+# Mostrar uso da memória no log do servidor (Streamlit > Manage App > Logs)
+print(f"🔍 [MEMORY DEBUG] {mem_mb:.2f} MB em uso após limpeza de GC")
+
+# Forçar limpeza completa
+gc.collect()
 
