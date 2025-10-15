@@ -6,13 +6,43 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # 🔄 COMPARTILHAR DADOS ENTRE PÁGINAS
-@st.cache_data(ttl=300)
+@st.cache_data(show_spinner=False)
 def carregar_dados():
-    df = pd.read_parquet('dados_tratados/df_EF_EM_bncc_censo.parquet')
-    # Remover colunas que não serão usadas já na função de carregamento
-    df.drop(columns=['CPF PESSOA', 'NOME PESSOA', 'MÉDIA ANUAL', 'EXAME FINAL', 
-                     'AVALIAÇÃO ESPECIAL', 'MÉDIA FINAL', 'MEDIA_1_2_BIM', 'STATUS'], 
-            inplace=True, errors='ignore')  # errors='ignore' evita erro se coluna não existir
+    # Especificar tipos de dados para otimização de memória
+    dtypes = {
+        'DIREC': 'category',
+        'MUNICÍPIO': 'category', 
+        'ESCOLA': 'category',
+        'INEP ESCOLA': 'string',
+        'SÉRIE': 'category',
+        'COMPONENTE CURRICULAR': 'category',
+        'NOTA 1º BIMESTRE': 'float32',
+        'NOTA 2º BIMESTRE': 'float32',
+        'NOTA 3º BIMESTRE': 'float32',
+        'NOTA 4º BIMESTRE': 'float32',
+        'ETAPA_RESUMIDA': 'category'
+    }
+    
+    df = pd.read_parquet('dados_tratados/df_EF_EM_bncc_censo.parquet',
+                         columns= ['DIREC',
+                                   'MUNICÍPIO',
+                                   'ESCOLA',
+                                   'INEP ESCOLA',  
+                                   'SÉRIE', 
+                                   'COMPONENTE CURRICULAR', 
+                                   'NOTA 1º BIMESTRE', 
+                                   'NOTA 2º BIMESTRE', 
+                                   'NOTA 3º BIMESTRE', 
+                                   'NOTA 4º BIMESTRE', 
+                                   'ETAPA_RESUMIDA']) # Somente as colunas necessárias
+    
+    # normalizações simples
+    df['INEP ESCOLA'] = df['INEP ESCOLA'].astype(str).str.strip()
+    df['ESCOLA'] = df['ESCOLA'].astype(str).str.strip()
+    # pré-criar a coluna formatada uma vez
+    df['ESCOLA_FORMATADA'] = df['ESCOLA'] + " (cód. Inep: " + df['INEP ESCOLA'] + ")"
+
+    
     return df
 
 
@@ -22,113 +52,94 @@ st.set_page_config(page_title="Lançamento de Notas",
                    page_icon="📈")
 
 
-# Carregar dados se não estiverem em cache
-if 'df' not in st.session_state:
-    st.session_state.df = carregar_dados()
-
-# Acessar dados
-df = st.session_state.df
+# Carregar os dados
+df = carregar_dados()
 
 
-# 🔄 COMPARTILHAR FILTROS ENTRE PÁGINAS
-# Inicializar session state para filtros se não existir
-if 'filtro_direc' not in st.session_state:
-    st.session_state.filtro_direc = 'Todas'
-if 'filtro_municipio' not in st.session_state:
-    st.session_state.filtro_municipio = 'Todos'
-if 'filtro_escola' not in st.session_state:
-    st.session_state.filtro_escola = 'Todas'
+# FILTROS
+@st.cache_data
+def get_direc_options(_df):
+    vals = _df['DIREC'].cat.categories.tolist() if _df['DIREC'].dtype.name == 'category' else sorted(_df['DIREC'].dropna().unique())
+    return ['Todas'] + [str(x) for x in vals]
 
-
-
-# Sidebar com os filtros
-st.sidebar.title("Filtros")
-
-# 1. Escolher a DIREC
-direc_options = ['Todas'] + sorted(df['DIREC'].dropna().unique().tolist())
-selected_direc = st.sidebar.selectbox("Selecione a DIREC:",
-                                      options=direc_options,
-                                      index=direc_options.index(st.session_state.filtro_direc))
-
-# Atualizar session state e resetar filtros dependentes se mudou
-if selected_direc != st.session_state.filtro_direc:
-    st.session_state.filtro_direc = selected_direc
-    st.session_state.filtro_municipio = 'Todos'
-    st.session_state.filtro_escola = 'Todas'
-
-# 2. Escolher o Município (usando cache para opções)
-@st.cache_data(ttl=300)
+@st.cache_data
 def get_municipio_options(_df, direc):
     if direc != 'Todas':
-        df_temp = _df[_df['DIREC'] == direc]
+        s = _df.loc[_df['DIREC'] == direc, 'MUNICÍPIO']
     else:
-        df_temp = _df
-    return ['Todos'] + sorted(df_temp['MUNICÍPIO'].dropna().unique().tolist())
+        s = _df['MUNICÍPIO']
+    vals = s.cat.categories.tolist() if s.dtype.name == 'category' else sorted(s.dropna().unique())
+    return ['Todos'] + [str(x) for x in vals]
 
-municipio_options = get_municipio_options(df, selected_direc)
-selected_municipio = st.sidebar.selectbox("Selecione o Município:",
-                                          options=municipio_options,
-                                          index=municipio_options.index(st.session_state.filtro_municipio))
+@st.cache_data
+def get_escola_options(_df, direc, municipio):
+    # NÃO usa .copy(); usa a coluna já criada ESCOLA_FORMATADA
+    mask = True
+    if direc != 'Todas':
+        mask = (_df['DIREC'] == direc)
+    if municipio != 'Todos':
+        mask = mask & (_df['MUNICÍPIO'] == municipio)
+    s = _df.loc[mask, 'ESCOLA_FORMATADA']
+    vals = s.cat.categories.tolist() if s.dtype.name == 'category' else sorted(s.dropna().unique())
+    return ['Todas'] + [str(x) for x in vals]
 
-# Atualizar session state e resetar filtro dependente se mudou
-if selected_municipio != st.session_state.filtro_municipio:
-    st.session_state.filtro_municipio = selected_municipio
+# ---------- 3. SESSION STATE DEFAULTS (inicializar antes dos widgets) ----------
+for k, v in {
+    'filtro_direc': 'Todas',
+    'filtro_municipio': 'Todos',
+    'filtro_escola': 'Todas'
+}.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+# ---------- 4. SIDEBAR + selectboxes usando key e on_change ----------
+st.sidebar.title("Filtros")
+
+def on_direc_change():
+    st.session_state.filtro_municipio = 'Todos'
     st.session_state.filtro_escola = 'Todas'
 
-# 3. Escolher a Escola (usando cache para opções)
-@st.cache_data(ttl=300)
-def get_escola_options(_df, direc, municipio):
-    df_temp = _df.copy()
+def on_municipio_change():
+    st.session_state.filtro_escola = 'Todas'
+
+direc_options = get_direc_options(df)
+st.sidebar.selectbox("Selecione a DIREC:", options=direc_options,
+                     key='filtro_direc', on_change=on_direc_change)
+
+municipio_options = get_municipio_options(df, st.session_state.filtro_direc)
+st.sidebar.selectbox("Selecione o Município:", options=municipio_options,
+                     key='filtro_municipio', on_change=on_municipio_change)
+
+escola_options = get_escola_options(df, st.session_state.filtro_direc, st.session_state.filtro_municipio)
+st.sidebar.selectbox("Selecione a Escola:", options=escola_options,
+                     key='filtro_escola')
+
+# ---------- 5. APLICAR FILTROS: usar máscara booleana (sem cache) ----------
+def aplicar_filtros_simples(_df, direc, municipio, escola_formatada):
+    mask = pd.Series(True, index=_df.index)
     if direc != 'Todas':
-        df_temp = df_temp[df_temp['DIREC'] == direc]
+        mask &= (_df['DIREC'] == direc)
     if municipio != 'Todos':
-        df_temp = df_temp[df_temp['MUNICÍPIO'] == municipio]
-    
-    df_temp['ESCOLA_FORMATADA'] = (
-        df_temp['ESCOLA'].astype(str) + " (cód. Inep: " + df_temp['INEP ESCOLA'].astype(str) + ")"
-    )
-    return ['Todas'] + sorted(df_temp['ESCOLA_FORMATADA'].dropna().unique().tolist())
+        mask &= (_df['MUNICÍPIO'] == municipio)
+    if escola_formatada != 'Todas':
+        mask &= (_df['ESCOLA_FORMATADA'] == escola_formatada)
+    # retorna uma "visão" filtrada — isso cria cópia por baixo, mas não cria colunas extras
+    return _df.loc[mask]
 
-escola_options = get_escola_options(df, selected_direc, selected_municipio)
-selected_escola_formatada = st.sidebar.selectbox("Selecione a Escola:",
-                                                 options=escola_options,
-                                                 index=escola_options.index(st.session_state.filtro_escola))
-
-# Atualizar session state
-if selected_escola_formatada != st.session_state.filtro_escola:
-    st.session_state.filtro_escola = selected_escola_formatada
-
-# APLICAR TODOS OS FILTROS DE UMA VEZ (COM CACHE)
-@st.cache_data(ttl=300)
-def aplicar_filtros(_df, direc, municipio, escola):
-    df_filtrado = _df.copy()
-    
-    if direc != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['DIREC'] == direc]
-    
-    if municipio != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['MUNICÍPIO'] == municipio]
-    
-    # Criar coluna formatada para escolas (apenas se necessário)
-    if escola != 'Todas' or 'ESCOLA_FORMATADA' not in df_filtrado.columns:
-        df_filtrado['ESCOLA_FORMATADA'] = (
-            df_filtrado['ESCOLA'].astype(str) + " (cód. Inep: " + df_filtrado['INEP ESCOLA'].astype(str) + ")"
-        )
-    
-    if escola != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['ESCOLA_FORMATADA'] == escola]
-    
-    return df_filtrado
-
-df_filtered = aplicar_filtros(df, selected_direc, selected_municipio, selected_escola_formatada)
+df_filtered = aplicar_filtros_simples(df,
+                                      st.session_state.filtro_direc,
+                                      st.session_state.filtro_municipio,
+                                      st.session_state.filtro_escola)
 
 
 # Botão para limpar todos os filtros
-if st.sidebar.button("🔄 Limpar Todos os Filtros"):
+def resetar_filtros():
     st.session_state.filtro_direc = 'Todas'
     st.session_state.filtro_municipio = 'Todos'
     st.session_state.filtro_escola = 'Todas'
-    st.cache_data.clear()
+
+if st.sidebar.button("🔄 Limpar Todos os Filtros"):
+    resetar_filtros()
     st.rerun()
 
 
@@ -763,5 +774,4 @@ except Exception as e:
     st.info("Tente usar filtros mais restritivos para reduzir a quantidade de dados.")
 
 
-df.columns.tolist()
 
