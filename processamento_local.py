@@ -209,14 +209,6 @@ def processar_dados_brutos():
     # Filtrar o df_EF_EM_bncc mantendo apenas linhas cujo CPF PESSOA esteja na lista
     df_EF_EM_bncc_censo = df_EF_EM_bncc[df_EF_EM_bncc["CPF PESSOA"].astype(str).isin(cpf_lista)]
 
-    # Salvar o DataFrame geral, por componente, no formato .parquet com compressão snappy
-    df_EF_EM_bncc_censo = df_EF_EM_bncc_censo.astype({"CPF PESSOA": "string"})
-    df_EF_EM_bncc_censo.to_parquet("df_EF_EM_bncc_censo.parquet", compression="snappy")
-
-    # Salvar o DataFrame geral, por componente, no formato .parquet com compressão snappy
-    df_EF_EM_bncc_censo = df_EF_EM_bncc_censo.astype({"CPF PESSOA": "string"})
-    df_EF_EM_bncc_censo.to_parquet("df_EF_EM_bncc_censo.parquet", compression="snappy")
-
     # Criar um dataframe só com os CPFs que estavam na base do Censo Escolar (em 28/05) e não estão no SigEduc atualmente
     # Garantir que os CPFs sejam strings e padronizados (sem pontos ou traços)
     df_censo["CPF"] = df_censo["CPF"].astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
@@ -228,14 +220,53 @@ def processar_dados_brutos():
     # Salvar em Excel o DataFrame de CPFs ausentes do SigEduc atualmente
     df_censo_ausentes.to_excel("df_censo_ausentes.xlsx", index=False)
 
+    # Fazer dataframe por escola para economizar espaço e processamento. Df agrupado por série e escola
+    colunas_agrupamento = ['DIREC', 'MUNICÍPIO', 'ESCOLA', 'INEP ESCOLA', 'ETAPA_RESUMIDA', 'SÉRIE']
+
+    # Dataframe base com as combinações únicas
+    df_base = df_EF_EM_bncc_censo[colunas_agrupamento].drop_duplicates().reset_index(drop=True)
+
+    # Para cada combinação única, calcular as contagens
+    resultados = []
+
+    for idx, row in df_base.iterrows():
+        # Filtrar os dados para esta combinação específica
+        mask = (
+            (df_EF_EM_bncc_censo['DIREC'] == row['DIREC']) &
+            (df_EF_EM_bncc_censo['MUNICÍPIO'] == row['MUNICÍPIO']) &
+            (df_EF_EM_bncc_censo['ESCOLA'] == row['ESCOLA']) &
+            (df_EF_EM_bncc_censo['INEP ESCOLA'] == row['INEP ESCOLA']) &
+            (df_EF_EM_bncc_censo['ETAPA_RESUMIDA'] == row['ETAPA_RESUMIDA']) &
+            (df_EF_EM_bncc_censo['SÉRIE'] == row['SÉRIE'])
+        )
+        
+        dados_filtrados = df_EF_EM_bncc_censo[mask]
+        
+        # Calcular as contagens para cada bimestre
+        contagens = {}
+        bimestres = {
+            '1B': 'NOTA 1º BIMESTRE',
+            '2B': 'NOTA 2º BIMESTRE',
+            '3B': 'NOTA 3º BIMESTRE',
+            '4B': 'NOTA 4º BIMESTRE'
+        }
+        
+        for prefixo, coluna in bimestres.items():
+            contagens[f'{prefixo}_Notas Lancadas'] = dados_filtrados[coluna].count()
+            contagens[f'{prefixo}_Notas Nao Lancadas'] = dados_filtrados[coluna].isnull().sum()
+        
+        # Adicionar ao resultado
+        resultados.append({**row.to_dict(), **contagens})
+
+    # Criar o dataframe final
+    df_escola = pd.DataFrame(resultados)
+
+    # Salvar em Excel o DataFrame de CPFs ausentes do SigEduc atualmente
+    df_escola.to_parquet("df_escola.parquet", index=False)
 
 # Executar o código acima se rodado diretamente e não como importação em outro módulo
 if __name__ == "__main__":
     processar_dados_brutos()
-
-
-
-
 
 
 

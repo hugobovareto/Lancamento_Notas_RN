@@ -17,27 +17,19 @@ def carregar_dados():
         'MUNICÍPIO': 'category', 
         'ESCOLA': 'category',
         'INEP ESCOLA': 'string',
+        'ETAPA_RESUMIDA': 'category',
         'SÉRIE': 'category',
-        'COMPONENTE CURRICULAR': 'category',
-        'NOTA 1º BIMESTRE': 'float32',
-        'NOTA 2º BIMESTRE': 'float32',
-        'NOTA 3º BIMESTRE': 'float32',
-        'NOTA 4º BIMESTRE': 'float32',
-        'ETAPA_RESUMIDA': 'category'
+        '1B_Notas Lancadas': 'float32', 
+        '1B_Notas Nao Lancadas': 'float32', 
+        '2B_Notas Lancadas': 'float32', 
+        '2B_Notas Nao Lancadas': 'float32', 
+        '3B_Notas Lancadas': 'float32', 
+        '3B_Notas Nao Lancadas': 'float32', 
+        '4B_Notas Lancadas': 'float32',
+        '4B_Notas Nao Lancadas': 'float32'
     }
     
-    df = pd.read_parquet('dados_tratados/df_EF_EM_bncc_censo.parquet',
-                         columns= ['DIREC',
-                                   'MUNICÍPIO',
-                                   'ESCOLA',
-                                   'INEP ESCOLA',  
-                                   'SÉRIE', 
-                                   'COMPONENTE CURRICULAR', 
-                                   'NOTA 1º BIMESTRE', 
-                                   'NOTA 2º BIMESTRE', 
-                                   'NOTA 3º BIMESTRE', 
-                                   'NOTA 4º BIMESTRE', 
-                                   'ETAPA_RESUMIDA']) # Somente as colunas necessárias
+    df = pd.read_parquet('dados_tratados/df_escola.parquet')
     
     # normalizações simples
     df['INEP ESCOLA'] = df['INEP ESCOLA'].astype(str).str.strip()
@@ -177,7 +169,7 @@ st.markdown("""
 st.write("")
 
 st.markdown("""
-            **⏱️ Última atualização**:  dados extraídos do SIGEduc em 10/10/2025.
+            **⏱️ Última atualização**:  dados extraídos do SIGEduc em 17/10/2025.
             """)
 
 st.write("")
@@ -187,35 +179,18 @@ st.markdown("Utilize os filtros no menu lateral para selecionar DIREC, Municípi
 
 st.write("")
 
-# Calcular contagem_nan primeiro
-notas_bimestres = ['NOTA 1º BIMESTRE', 'NOTA 2º BIMESTRE', 'NOTA 3º BIMESTRE']
-contagem_nan = {}
+# Análise de Lançamento de Notas
 
-for bimestre in notas_bimestres:
-    if bimestre in df_filtered.columns:
-        contagem_nan[bimestre] = df_filtered[bimestre].isna().sum()
-    else:
-        contagem_nan[bimestre] = 0  # Caso a coluna não exista
+# Total de registros de notas (lançadas + não lançadas)
+total_registros = (df_filtered['1B_Notas Nao Lancadas'].sum()) + (df_filtered['1B_Notas Lancadas'].sum())
 
-# Calcular os percentuais antes de criar o gráfico
-total_registros = len(df_filtered)
+# NOTAS NÃO LANÇADAS
+# Calcular os percentuais de notas não lançadas
+perc_nao_1bim = ((df_filtered['1B_Notas Nao Lancadas'].sum()) / total_registros * 100).round(1)
+perc_nao_2bim = ((df_filtered['2B_Notas Nao Lancadas'].sum()) / total_registros * 100).round(1)
+perc_nao_3bim = ((df_filtered['3B_Notas Nao Lancadas'].sum()) / total_registros * 100).round(1)
+perc_nao_4bim = ((df_filtered['4B_Notas Nao Lancadas'].sum()) / total_registros * 100).round(1)
 
-# Calcular os percentuais garantindo que estão corretos
-perc_1bim = (contagem_nan['NOTA 1º BIMESTRE'] / total_registros * 100).round(1)
-perc_2bim = (contagem_nan['NOTA 2º BIMESTRE'] / total_registros * 100).round(1)
-perc_3bim = (contagem_nan['NOTA 3º BIMESTRE'] / total_registros * 100).round(1)
-
-# Criar o df_nan com os percentuais calculados
-df_nan = pd.DataFrame({
-    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre'],
-    'Notas Faltantes': [
-        contagem_nan['NOTA 1º BIMESTRE'], 
-        contagem_nan['NOTA 2º BIMESTRE'], 
-        contagem_nan['NOTA 3º BIMESTRE']
-    ],
-    'Percentual': [perc_1bim, perc_2bim, perc_3bim],  # Usando os percentuais já calculados
-    'Total de Registros': total_registros  # Adicionando esta coluna
-})
 
 # Mostrar métricas detalhadas de notas não lançadas
 st.markdown("**❌ Notas Não Lançadas:**")
@@ -224,26 +199,40 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(
         "1º Bimestre", 
-        f"{contagem_nan['NOTA 1º BIMESTRE']:,}", 
-        f"{perc_1bim}% faltantes",
+        f"{(df_filtered['1B_Notas Nao Lancadas'].sum()):,}", 
+        f"{perc_nao_1bim}% faltantes",
         delta_color="inverse"
     )
 
 with col2:
     st.metric(
         "2º Bimestre", 
-        f"{contagem_nan['NOTA 2º BIMESTRE']:,}", 
-        f"{perc_2bim}% faltantes",
+        f"{(df_filtered['2B_Notas Nao Lancadas'].sum()):,}", 
+        f"{perc_nao_2bim}% faltantes",
         delta_color="inverse" 
     )
 
 with col3:
     st.metric(
         "3º Bimestre", 
-        f"{contagem_nan['NOTA 3º BIMESTRE']:,}", 
-        f"{perc_3bim}% faltantes",
+        f"{(df_filtered['3B_Notas Nao Lancadas'].sum()):,}", 
+        f"{perc_nao_3bim}% faltantes",
         delta_color="inverse"
     )
+
+# Criar o df_nan com os percentuais calculados de notas não lançadas
+df_nan = pd.DataFrame({
+    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre'],
+    'Notas Faltantes': [
+        (df_filtered['1B_Notas Nao Lancadas'].sum()), 
+        (df_filtered['2B_Notas Nao Lancadas'].sum()), 
+        (df_filtered['3B_Notas Nao Lancadas'].sum()),
+    ],
+    'Percentual': [perc_nao_1bim, perc_nao_2bim, perc_nao_3bim],  # Usando os percentuais já calculados
+    'Total de Registros': total_registros  # Adicionando esta coluna
+})
+
+
 
 # Criar o gráfico com Plotly: Notas Não Lançadas
 fig = px.bar(
@@ -276,60 +265,52 @@ fig.update_traces(
 st.plotly_chart(fig, use_container_width=True)
 
 
-# Calcular contagem de Notas Lançadas
-
-# Calcular contagem_lancadas (valores não-NaN)
-contagem_lancadas = {}
-
-for bimestre in notas_bimestres:
-    if bimestre in df_filtered.columns:
-        contagem_lancadas[bimestre] = df_filtered[bimestre].notna().sum()
-    else:
-        contagem_lancadas[bimestre] = 0
-
-# Calcular os percentuais para notas lançadas
-perc_lanc_1bim = (contagem_lancadas['NOTA 1º BIMESTRE'] / total_registros * 100).round(1)
-perc_lanc_2bim = (contagem_lancadas['NOTA 2º BIMESTRE'] / total_registros * 100).round(1)
-perc_lanc_3bim = (contagem_lancadas['NOTA 3º BIMESTRE'] / total_registros * 100).round(1)
-
-# Criar o df_lancadas com os percentuais calculados
-df_lancadas = pd.DataFrame({
-    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre'],
-    'Notas Lançadas': [
-        contagem_lancadas['NOTA 1º BIMESTRE'], 
-        contagem_lancadas['NOTA 2º BIMESTRE'], 
-        contagem_lancadas['NOTA 3º BIMESTRE']
-    ],
-    'Percentual': [perc_lanc_1bim, perc_lanc_2bim, perc_lanc_3bim],
-    'Total de Registros': total_registros
-})
+# NOTAS LANÇADAS
+# Calcular os percentuais de notas lançadas
+perc_1bim = ((df_filtered['1B_Notas Lancadas'].sum()) / total_registros * 100).round(1)
+perc_2bim = ((df_filtered['2B_Notas Lancadas'].sum()) / total_registros * 100).round(1)
+perc_3bim = ((df_filtered['3B_Notas Lancadas'].sum()) / total_registros * 100).round(1)
+perc_4bim = ((df_filtered['4B_Notas Lancadas'].sum()) / total_registros * 100).round(1)
 
 st.write("")
 
-# Mostrar métricas detalhadas de notas lançadas
+# Mostrar métricas detalhadas de notas não lançadas
 st.markdown("**✅ Notas Lançadas:**")
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric(
         "1º Bimestre", 
-        f"{contagem_lancadas['NOTA 1º BIMESTRE']:,}", 
-        f"{perc_lanc_1bim}% lançadas"
+        f"{(df_filtered['1B_Notas Lancadas'].sum()):,}", 
+        f"{perc_1bim}% faltantes",
     )
 
 with col2:
     st.metric(
         "2º Bimestre", 
-        f"{contagem_lancadas['NOTA 2º BIMESTRE']:,}", 
-        f"{perc_lanc_2bim}% lançadas"
+        f"{(df_filtered['2B_Notas Lancadas'].sum()):,}", 
+        f"{perc_2bim}% faltantes",
     )
 
 with col3:
     st.metric(
         "3º Bimestre", 
-        f"{contagem_lancadas['NOTA 3º BIMESTRE']:,}", 
-        f"{perc_lanc_3bim}% lançadas"
+        f"{(df_filtered['3B_Notas Lancadas'].sum()):,}", 
+        f"{perc_3bim}% faltantes",
     )
+
+
+# Criar o df_lancamento com os percentuais calculados de notas lançadas
+df_lancadas = pd.DataFrame({
+    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre'],
+    'Notas Lançadas': [
+        (df_filtered['1B_Notas Lancadas'].sum()), 
+        (df_filtered['2B_Notas Lancadas'].sum()), 
+        (df_filtered['3B_Notas Lancadas'].sum()),
+    ],
+    'Percentual': [perc_1bim, perc_2bim, perc_3bim],  # Usando os percentuais já calculados
+    'Total de Registros': total_registros  # Adicionando esta coluna
+})
 
 # Criar o gráfico com Plotly: Notas Lançadas
 fig_lancadas = px.bar(
@@ -373,16 +354,21 @@ st.markdown("1️⃣ _1º Bimestre:_")
 
 # Calcular totais por DIREC para o 1º bimestre
 df_direc_1bim = df_filtered.groupby('DIREC').agg({
-    'NOTA 1º BIMESTRE': [
-        ('Total_Registros', 'size'),
-        ('Lançadas', lambda x: x.notna().sum()),
-        ('Não_Lançadas', lambda x: x.isna().sum())
-    ]
+    '1B_Notas Lancadas': 'sum',
+    '1B_Notas Nao Lancadas': 'sum'
 }).round(0)
 
-# Reformatar o DataFrame
-df_direc_1bim.columns = df_direc_1bim.columns.droplevel(0)
+# Reformatar o DataFrame (tirar a DIREC como índice)
 df_direc_1bim = df_direc_1bim.reset_index()
+
+# Adicionar coluna de total de registros (soma das notas lançadas + não lançadas)
+df_direc_1bim['Total_Registros'] = df_direc_1bim['1B_Notas Lancadas'] + df_direc_1bim['1B_Notas Nao Lancadas']
+
+# Renomear as colunas para manter compatibilidade
+df_direc_1bim = df_direc_1bim.rename(columns={
+    '1B_Notas Lancadas': 'Lançadas',
+    '1B_Notas Nao Lancadas': 'Não_Lançadas'
+})
 
 # Calcular percentuais
 df_direc_1bim['%_Lançadas'] = (df_direc_1bim['Lançadas'] / df_direc_1bim['Total_Registros'] * 100).round(1)
@@ -479,18 +465,23 @@ with st.expander("📋 Ver Dados Detalhados por DIREC"):
 st.write("")
 st.markdown("2️⃣ _2º Bimestre:_")
 
-# Calcular totais por DIREC para o 1º bimestre
+# Calcular totais por DIREC para o 2º bimestre
 df_direc_2bim = df_filtered.groupby('DIREC').agg({
-    'NOTA 2º BIMESTRE': [
-        ('Total_Registros', 'size'),
-        ('Lançadas', lambda x: x.notna().sum()),
-        ('Não_Lançadas', lambda x: x.isna().sum())
-    ]
+    '2B_Notas Lancadas': 'sum',
+    '2B_Notas Nao Lancadas': 'sum'
 }).round(0)
 
-# Reformatar o DataFrame
-df_direc_2bim.columns = df_direc_2bim.columns.droplevel(0)
+# Reformatar o DataFrame (tirar a DIREC como índice)
 df_direc_2bim = df_direc_2bim.reset_index()
+
+# Adicionar coluna de total de registros (soma das notas lançadas + não lançadas)
+df_direc_2bim['Total_Registros'] = df_direc_2bim['2B_Notas Lancadas'] + df_direc_2bim['2B_Notas Nao Lancadas']
+
+# Renomear as colunas para manter compatibilidade
+df_direc_2bim = df_direc_2bim.rename(columns={
+    '2B_Notas Lancadas': 'Lançadas',
+    '2B_Notas Nao Lancadas': 'Não_Lançadas'
+})
 
 # Calcular percentuais
 df_direc_2bim['%_Lançadas'] = (df_direc_2bim['Lançadas'] / df_direc_2bim['Total_Registros'] * 100).round(1)
@@ -549,8 +540,8 @@ fig_direc_2bim.update_layout(
 fig_direc_2bim.update_xaxes(
     tickangle=-45,
     tickmode='array',
-    tickvals=df_direc_1bim['DIREC_Truncada'],
-    ticktext=df_direc_1bim['DIREC_Truncada']
+    tickvals=df_direc_2bim['DIREC_Truncada'],
+    ticktext=df_direc_2bim['DIREC_Truncada']
 )
 
 # Ajustar eixo Y para ir de 0% a 100%
@@ -587,18 +578,23 @@ with st.expander("📋 Ver Dados Detalhados por DIREC"):
 st.write("")
 st.markdown("3️⃣ _3º Bimestre:_")
 
-# Calcular totais por DIREC para o 1º bimestre
+# Calcular totais por DIREC para o 3º bimestre
 df_direc_3bim = df_filtered.groupby('DIREC').agg({
-    'NOTA 3º BIMESTRE': [
-        ('Total_Registros', 'size'),
-        ('Lançadas', lambda x: x.notna().sum()),
-        ('Não_Lançadas', lambda x: x.isna().sum())
-    ]
+    '3B_Notas Lancadas': 'sum',
+    '3B_Notas Nao Lancadas': 'sum'
 }).round(0)
 
-# Reformatar o DataFrame
-df_direc_3bim.columns = df_direc_3bim.columns.droplevel(0)
+# Reformatar o DataFrame (tirar a DIREC como índice)
 df_direc_3bim = df_direc_3bim.reset_index()
+
+# Adicionar coluna de total de registros (soma das notas lançadas + não lançadas)
+df_direc_3bim['Total_Registros'] = df_direc_3bim['3B_Notas Lancadas'] + df_direc_3bim['3B_Notas Nao Lancadas']
+
+# Renomear as colunas para manter compatibilidade
+df_direc_3bim = df_direc_3bim.rename(columns={
+    '3B_Notas Lancadas': 'Lançadas',
+    '3B_Notas Nao Lancadas': 'Não_Lançadas'
+})
 
 # Calcular percentuais
 df_direc_3bim['%_Lançadas'] = (df_direc_3bim['Lançadas'] / df_direc_3bim['Total_Registros'] * 100).round(1)
@@ -657,8 +653,8 @@ fig_direc_3bim.update_layout(
 fig_direc_3bim.update_xaxes(
     tickangle=-45,
     tickmode='array',
-    tickvals=df_direc_1bim['DIREC_Truncada'],
-    ticktext=df_direc_1bim['DIREC_Truncada']
+    tickvals=df_direc_3bim['DIREC_Truncada'],
+    ticktext=df_direc_3bim['DIREC_Truncada']
 )
 
 # Ajustar eixo Y para ir de 0% a 100%
@@ -666,7 +662,7 @@ fig_direc_3bim.update_yaxes(range=[0, 100])
 
 # Exibir gráfico
 st.plotly_chart(fig_direc_3bim, use_container_width=True)
-gc.collect() # Forçar coleta de lixo para liberar memória
+
 
 # Mostrar tabela com dados detalhados e formatação
 with st.expander("📋 Ver Dados Detalhados por DIREC"):
@@ -703,28 +699,33 @@ st.markdown(
 # Calcular de forma incremental para evitar sobrecarga
 try:
     # Primeiro: obter lista de escolas únicas
-    escolas = df_filtered[['INEP ESCOLA', 'ESCOLA', 'DIREC', 'MUNICÍPIO']].drop_duplicates()
+    escolas_unicas = df_filtered[['INEP ESCOLA', 'ESCOLA', 'DIREC', 'MUNICÍPIO']].drop_duplicates()
     
     # Inicializar lista para resultados
     resultados = []
     
     # Calcular para cada escola individualmente (mais lento mas seguro)
-    for idx, escola in escolas.iterrows():
+    for idx, escola in escolas_unicas.iterrows():
         inep = escola['INEP ESCOLA']
         
         # Filtrar dados apenas para esta escola
-        df_escola = df_filtered[df_filtered['INEP ESCOLA'] == inep]
+        df_escola_filtrada = df_filtered[df_filtered['INEP ESCOLA'] == inep]
         
-        # Calcular percentuais
-        total = len(df_escola)
-        nan_1bim = df_escola['NOTA 1º BIMESTRE'].isna().sum() if 'NOTA 1º BIMESTRE' in df_escola.columns else 0
-        nan_2bim = df_escola['NOTA 2º BIMESTRE'].isna().sum() if 'NOTA 2º BIMESTRE' in df_escola.columns else 0
-        nan_3bim = df_escola['NOTA 3º BIMESTRE'].isna().sum() if 'NOTA 3º BIMESTRE' in df_escola.columns else 0
+        # Calcular totais baseados nas novas colunas
+        total_1b = df_escola_filtrada['1B_Notas Lancadas'].sum() + df_escola_filtrada['1B_Notas Nao Lancadas'].sum()
+        total_2b = df_escola_filtrada['2B_Notas Lancadas'].sum() + df_escola_filtrada['2B_Notas Nao Lancadas'].sum()
+        total_3b = df_escola_filtrada['3B_Notas Lancadas'].sum() + df_escola_filtrada['3B_Notas Nao Lancadas'].sum()
         
-        perc_1bim = (nan_1bim / total * 100).round(1) if total > 0 else 0
-        perc_2bim = (nan_2bim / total * 100).round(1) if total > 0 else 0
-        perc_3bim = (nan_3bim / total * 100).round(1) if total > 0 else 0
-        
+        # Calcular percentuais de notas NÃO lançadas
+        nao_lancadas_1b = df_escola_filtrada['1B_Notas Nao Lancadas'].sum()
+        nao_lancadas_2b = df_escola_filtrada['2B_Notas Nao Lancadas'].sum()
+        nao_lancadas_3b = df_escola_filtrada['3B_Notas Nao Lancadas'].sum()
+
+        perc_1bim = (nao_lancadas_1b / total_1b * 100).round(1) if total_1b > 0 else 0
+        perc_2bim = (nao_lancadas_2b / total_2b * 100).round(1) if total_2b > 0 else 0
+        perc_3bim = (nao_lancadas_3b / total_3b * 100).round(1) if total_3b > 0 else 0
+
+
         # Formatar nome da escola
         escola_formatada = f"{escola['ESCOLA']} (cód. Inep: {inep})"
         
@@ -790,16 +791,6 @@ except Exception as e:
     st.error(f"Erro crítico: {e}")
     st.info("Tente usar filtros mais restritivos para reduzir a quantidade de dados.")
 
-
-
-# Verificar uso de memória
-process = psutil.Process(os.getpid())
-mem_mb = process.memory_info().rss / 1024 / 1024
-
-st.sidebar.metric("💾 Uso de memória", f"{mem_mb:.1f} MB")
-
-# Mostrar uso da memória no log do servidor (Streamlit > Manage App > Logs)
-print(f"🔍 [MEMORY DEBUG] {mem_mb:.2f} MB em uso após limpeza de GC")
 
 # Forçar limpeza completa
 gc.collect()
