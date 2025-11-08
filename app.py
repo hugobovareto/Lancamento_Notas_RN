@@ -282,21 +282,21 @@ with col1:
     st.metric(
         "1º Bimestre", 
         f"{(df_filtered['1B_Notas Lancadas'].sum()):,}", 
-        f"{perc_1bim}% faltantes",
+        f"{perc_1bim}% lançadas",
     )
 
 with col2:
     st.metric(
         "2º Bimestre", 
         f"{(df_filtered['2B_Notas Lancadas'].sum()):,}", 
-        f"{perc_2bim}% faltantes",
+        f"{perc_2bim}% lançadas",
     )
 
 with col3:
     st.metric(
         "3º Bimestre", 
         f"{(df_filtered['3B_Notas Lancadas'].sum()):,}", 
-        f"{perc_3bim}% faltantes",
+        f"{perc_3bim}% lançadas",
     )
 
 
