@@ -218,7 +218,7 @@ def processar_dados_brutos():
     df_censo_ausentes = df_censo[~df_censo["CPF"].isin(df_EF_EM_bncc["CPF PESSOA"])]
 
     # Salvar em Excel o DataFrame de CPFs ausentes do SigEduc atualmente
-    df_censo_ausentes.to_excel("df_censo_ausentes.xlsx", index=False)
+    df_censo_ausentes.to_excel("dados_tratados/df_censo_ausentes.xlsx", index=False)
 
     # Fazer dataframe por escola para economizar espaço e processamento. Df agrupado por série e escola
     colunas_agrupamento = ['DIREC', 'MUNICÍPIO', 'ESCOLA', 'INEP ESCOLA', 'ETAPA_RESUMIDA', 'SÉRIE']
