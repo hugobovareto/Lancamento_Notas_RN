@@ -261,8 +261,8 @@ def processar_dados_brutos():
     # Criar o dataframe final
     df_escola = pd.DataFrame(resultados)
 
-    # Salvar em Excel o DataFrame de CPFs ausentes do SigEduc atualmente
-    df_escola.to_parquet("df_escola.parquet", index=False)
+    # Salvar em .parquet o DataFrame de CPFs ausentes do SigEduc atualmente
+    df_escola.to_parquet("dados_tratados/df_escola.parquet", index=False)
 
 # Executar o código acima se rodado diretamente e não como importação em outro módulo
 if __name__ == "__main__":
