@@ -105,23 +105,24 @@ def processar_dados_brutos():
 
     df_EF_EM_bncc['ETAPA_RESUMIDA'] = df_EF_EM_bncc['SÉRIE'].map(mapeamento_etapa)
 
-    # Criar coluna com nota final média do 1º semestre, considerando as notas do 1º e 2º bimestres:
+    # Criar coluna com nota final média, considerando as notas do 1º, 2º e 3º bimestres:
     # (ignora os valores NaN e fazem a média somente com os valores presentes. Se só tiver 1 nota disponível, a média será essa nota)
     '''
     Se as duas colunas têm valores → média das duas.
     Se apenas uma tem valor → retorna esse valor.
     Se ambas são NaN → retorna NaN.
     '''
-    df_EF_EM_bncc['MEDIA_1_2_BIM'] = df_EF_EM_bncc[['NOTA 1º BIMESTRE','NOTA 2º BIMESTRE']].mean(axis=1, skipna=True)
+                                    ###### MODIFICAR AQUI QUANDO TIVER MAIS NOTAS LANÇADAS ######
+
+    df_EF_EM_bncc['MEDIA_NOTAS'] = df_EF_EM_bncc[['NOTA 1º BIMESTRE','NOTA 2º BIMESTRE', 'NOTA 3º BIMESTRE']].mean(axis=1, skipna=True)
 
     # Criar uma coluna para Aprovado ou Reprovado por componente (reprovação caso a média seja menor que 6)
-                                    ###### MODIFICAR AQUI QUANDO TIVER MAIS NOTAS LANÇADAS ######
     # (sem nota caso os dois bimestres sejam NaN)
     df_EF_EM_bncc['STATUS'] = np.where(
-        df_EF_EM_bncc['MEDIA_1_2_BIM'].isna(),           # 1️⃣ caso: sem média
+        df_EF_EM_bncc['MEDIA_NOTAS'].isna(),           # 1️⃣ caso: sem média
         'Sem nota',
         np.where(
-            df_EF_EM_bncc['MEDIA_1_2_BIM'] >= 6,         # 2️⃣ caso: média suficiente
+            df_EF_EM_bncc['MEDIA_NOTAS'] >= 6,         # 2️⃣ caso: média suficiente
             'Aprovado',
             'Reprovado'                                  # 3️⃣ caso: média < 6
         )
@@ -201,15 +202,15 @@ def processar_dados_brutos():
 
     # Filtrar linhas somente com os CPFs na base dados que foi enviada para o Censo Escolar no dia 28/05
     # Ler o arquivo enviado para o Censo Escolar em 28/05 (em Excel)
-    df_censo = pd.read_excel(r"C:\Users\hugob\Downloads\20250528_Censo Escolar_DADOS CONSOLIDADOS.xlsx")
+    df_censo = pd.read_excel(r"C:\Users\hugob\Downloads\DADOS EDUCACENSO FINAL_RETIFICADO.xlsx")
 
-    # Criar uma lista dos CPFs do Excel (Censo 28/05) (garantindo que sejam strings e sem espaços)
+    # Criar uma lista dos CPFs do Excel (Censo Escolar Retificado) (garantindo que sejam strings e sem espaços)
     cpf_lista = df_censo["CPF"].astype(str).str.strip().unique()
 
     # Filtrar o df_EF_EM_bncc mantendo apenas linhas cujo CPF PESSOA esteja na lista
     df_EF_EM_bncc_censo = df_EF_EM_bncc[df_EF_EM_bncc["CPF PESSOA"].astype(str).isin(cpf_lista)]
 
-    # Criar um dataframe só com os CPFs que estavam na base do Censo Escolar (em 28/05) e não estão no SigEduc atualmente
+    # Criar um dataframe só com os CPFs que estavam na base do Censo Escolar e não estão no SigEduc atualmente
     # Garantir que os CPFs sejam strings e padronizados (sem pontos ou traços)
     df_censo["CPF"] = df_censo["CPF"].astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
     df_EF_EM_bncc["CPF PESSOA"] = df_EF_EM_bncc["CPF PESSOA"].astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)

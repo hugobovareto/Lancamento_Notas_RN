@@ -339,7 +339,7 @@ fig_lancadas.update_traces(
     textfont_size=12
 )
 
-# Exibir o gráfico de notas lançadas
+# Exibir o gráfico de Notas Lançadas
 st.plotly_chart(fig_lancadas, use_container_width=True)
 
 st.write("")
