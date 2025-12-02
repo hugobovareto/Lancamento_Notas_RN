@@ -112,7 +112,7 @@ def processar_dados_brutos():
     Se apenas uma tem valor → retorna esse valor.
     Se ambas são NaN → retorna NaN.
     '''
-                                    ###### MODIFICAR AQUI QUANDO TIVER MAIS NOTAS LANÇADAS ######
+                                    ###### MODIFICAR AQUI QUANDO TIVER MAIS NOTAS LANÇADAS E QUISER CONSIDERAR NA MÉDIA######
 
     df_EF_EM_bncc['MEDIA_NOTAS'] = df_EF_EM_bncc[['NOTA 1º BIMESTRE','NOTA 2º BIMESTRE', 'NOTA 3º BIMESTRE']].mean(axis=1, skipna=True)
 

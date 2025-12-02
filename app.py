@@ -194,7 +194,7 @@ perc_nao_4bim = ((df_filtered['4B_Notas Nao Lancadas'].sum()) / total_registros 
 
 # Mostrar métricas detalhadas de notas não lançadas
 st.markdown("**❌ Notas Não Lançadas:**")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.metric(
@@ -220,15 +220,24 @@ with col3:
         delta_color="inverse"
     )
 
+with col4:
+    st.metric(
+        "4º Bimestre", 
+        f"{(df_filtered['4B_Notas Nao Lancadas'].sum()):,}", 
+        f"{perc_nao_4bim}% faltantes",
+        delta_color="inverse"
+    )
+
 # Criar o df_nan com os percentuais calculados de notas não lançadas
 df_nan = pd.DataFrame({
-    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre'],
+    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'],
     'Notas Faltantes': [
         (df_filtered['1B_Notas Nao Lancadas'].sum()), 
         (df_filtered['2B_Notas Nao Lancadas'].sum()), 
         (df_filtered['3B_Notas Nao Lancadas'].sum()),
+        (df_filtered['4B_Notas Nao Lancadas'].sum()),
     ],
-    'Percentual': [perc_nao_1bim, perc_nao_2bim, perc_nao_3bim],  # Usando os percentuais já calculados
+    'Percentual': [perc_nao_1bim, perc_nao_2bim, perc_nao_3bim, perc_nao_4bim],  # Usando os percentuais já calculados
     'Total de Registros': total_registros  # Adicionando esta coluna
 })
 
@@ -276,7 +285,7 @@ st.write("")
 
 # Mostrar métricas detalhadas de notas não lançadas
 st.markdown("**✅ Notas Lançadas:**")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.metric(
@@ -299,16 +308,25 @@ with col3:
         f"{perc_3bim}% lançadas",
     )
 
+with col4:
+    st.metric( 
+        "4º Bimestre", 
+        f"{(df_filtered['4B_Notas Lancadas'].sum()):,}", 
+        f"{perc_4bim}% lançadas",
+    )
+
+
 
 # Criar o df_lancamento com os percentuais calculados de notas lançadas
 df_lancadas = pd.DataFrame({
-    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre'],
+    'Bimestre': ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'],
     'Notas Lançadas': [
         (df_filtered['1B_Notas Lancadas'].sum()), 
         (df_filtered['2B_Notas Lancadas'].sum()), 
         (df_filtered['3B_Notas Lancadas'].sum()),
+        (df_filtered['4B_Notas Lancadas'].sum()),
     ],
-    'Percentual': [perc_1bim, perc_2bim, perc_3bim],  # Usando os percentuais já calculados
+    'Percentual': [perc_1bim, perc_2bim, perc_3bim, perc_4bim],  # Usando os percentuais já calculados
     'Total de Registros': total_registros  # Adicionando esta coluna
 })
 
@@ -345,7 +363,7 @@ st.plotly_chart(fig_lancadas, use_container_width=True)
 st.write("")
 st.write("")
 
-# Percentual de Notas Lançadas e Não Lançadas por DIREC (para 1º e 2º bimestres)
+# PERCENTUAL DE NOTAS LANÇADAS E NÃO LANÇADAS POR DIREC:
 st.markdown(
     "<p style='font-size:24px; font-weight:bold;'>Percentual de Notas Lançadas e Não Lançadas por DIREC</p>",
     unsafe_allow_html=True)
@@ -688,9 +706,122 @@ with st.expander("📋 Ver Dados Detalhados por DIREC"):
         })
 
 st.write("")
+st.markdown("4️⃣ _4º Bimestre:_")
+
+# Calcular totais por DIREC para o 4º bimestre
+df_direc_4bim = df_filtered.groupby('DIREC').agg({
+    '4B_Notas Lancadas': 'sum',
+    '4B_Notas Nao Lancadas': 'sum'
+}).round(0)
+
+# Reformatar o DataFrame (tirar a DIREC como índice)
+df_direc_4bim = df_direc_4bim.reset_index()
+
+# Adicionar coluna de total de registros (soma das notas lançadas + não lançadas)
+df_direc_4bim['Total_Registros'] = df_direc_4bim['4B_Notas Lancadas'] + df_direc_4bim['4B_Notas Nao Lancadas']
+
+# Renomear as colunas para manter compatibilidade
+df_direc_4bim = df_direc_4bim.rename(columns={
+    '4B_Notas Lancadas': 'Lançadas',
+    '4B_Notas Nao Lancadas': 'Não_Lançadas'
+})
+
+# Calcular percentuais
+df_direc_4bim['%_Lançadas'] = (df_direc_4bim['Lançadas'] / df_direc_4bim['Total_Registros'] * 100).round(1)
+df_direc_4bim['%_Não_Lançadas'] = (df_direc_4bim['Não_Lançadas'] / df_direc_4bim['Total_Registros'] * 100).round(1)
+
+# Ordenar por nome da DIREC (ordem alfabética crescente)
+df_direc_4bim = df_direc_4bim.sort_values('DIREC', ascending=True)
+
+# Truncar nomes das DIRECs para 9 primeiros caracteres (apenas nº da DIREC)
+df_direc_4bim['DIREC_Truncada'] = df_direc_4bim['DIREC'].str.slice(0, 9)
+
+# Criar gráfico de barras empilhadas VERTICAIS
+fig_direc_4bim = go.Figure()
+
+# Barra de notas lançadas (verde)
+fig_direc_4bim.add_trace(go.Bar(
+    name='✅ Notas Lançadas',
+    x=df_direc_4bim['DIREC_Truncada'],  # Eixo X com nomes truncados
+    y=df_direc_4bim['%_Lançadas'],
+    marker=dict(color='#2e7d32'),
+    text=df_direc_4bim['%_Lançadas'].astype(str) + '%',
+    textposition='inside',
+    hovertemplate='<b>%{x}</b><br>Notas Lançadas: %{y}%<br>Total: ' + df_direc_4bim['Lançadas'].astype(str) + '<extra></extra>'
+))
+
+# Barra de notas não lançadas (vermelho)
+fig_direc_4bim.add_trace(go.Bar(
+    name='❌ Notas Não Lançadas',
+    x=df_direc_4bim['DIREC_Truncada'],  # Eixo X com nomes truncados
+    y=df_direc_4bim['%_Não_Lançadas'],
+    marker=dict(color='#c62828'),
+    text=df_direc_4bim['%_Não_Lançadas'].astype(str) + '%',
+    textposition='inside',
+    hovertemplate='<b>%{x}</b><br>Notas Não Lançadas: %{y}%<br>Total: ' + df_direc_4bim['Não_Lançadas'].astype(str) + '<extra></extra>'
+))
+
+# Configurar layout
+fig_direc_4bim.update_layout(
+    title='4º Bimestre: Percentual de Notas Lançadas vs Não Lançadas por DIREC',
+    xaxis_title='DIREC',
+    yaxis_title='Percentual (%)',
+    barmode='stack',
+    height=600,
+    showlegend=True,
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1
+    ),
+    margin=dict(t=80, b=100, l=50, r=50)  # Aumentar margem inferior para caber labels
+)
+
+# Rodar labels do eixo X em 45 graus e ajustar
+fig_direc_4bim.update_xaxes(
+    tickangle=-45,
+    tickmode='array',
+    tickvals=df_direc_4bim['DIREC_Truncada'],
+    ticktext=df_direc_4bim['DIREC_Truncada']
+)
+
+# Ajustar eixo Y para ir de 0% a 100%
+fig_direc_4bim.update_yaxes(range=[0, 100])
+
+# Exibir gráfico
+st.plotly_chart(fig_direc_4bim, use_container_width=True)
+
+
+# Mostrar tabela com dados detalhados e formatação
+with st.expander("📋 Ver Dados Detalhados por DIREC"):
+    # Criar DataFrame de exibição
+    df_display = pd.DataFrame({
+        'DIREC': df_direc_4bim['DIREC'],
+        'Total de Registros': df_direc_4bim['Total_Registros'],
+        'Notas Lançadas': df_direc_4bim['Lançadas'],
+        'Notas Não Lançadas': df_direc_4bim['Não_Lançadas'],
+        '% Lançadas': df_direc_4bim['%_Lançadas'].astype(str) + ' %',
+        '% Não Lançadas': df_direc_4bim['%_Não_Lançadas'].astype(str) + ' %'
+    })
+    
+    # Estilizar a tabela (opcional)
+    st.dataframe(
+        df_display,
+        width='stretch',
+        hide_index=True,
+        column_config={
+            'Total de Registros': st.column_config.NumberColumn(format='%d'),
+            'Notas Lançadas': st.column_config.NumberColumn(format='%d'),
+            'Notas Não Lançadas': st.column_config.NumberColumn(format='%d')
+        })
+
+
+st.write("")
 st.write("")
 
-# Escolas maiores percentuais de notas não lançadas
+# ESCOLAS COM MAIORES PERCENTUAIS DE NOTAS NÃO LANÇADAS
 st.markdown(
     "<p style='font-size:24px; font-weight:bold;'>Escolas com maiores percentuais de notas não lançadas</p>",
     unsafe_allow_html=True)
@@ -715,15 +846,19 @@ try:
         total_1b = df_escola_filtrada['1B_Notas Lancadas'].sum() + df_escola_filtrada['1B_Notas Nao Lancadas'].sum()
         total_2b = df_escola_filtrada['2B_Notas Lancadas'].sum() + df_escola_filtrada['2B_Notas Nao Lancadas'].sum()
         total_3b = df_escola_filtrada['3B_Notas Lancadas'].sum() + df_escola_filtrada['3B_Notas Nao Lancadas'].sum()
+        total_4b = df_escola_filtrada['4B_Notas Lancadas'].sum() + df_escola_filtrada['4B_Notas Nao Lancadas'].sum()
         
         # Calcular percentuais de notas NÃO lançadas
         nao_lancadas_1b = df_escola_filtrada['1B_Notas Nao Lancadas'].sum()
         nao_lancadas_2b = df_escola_filtrada['2B_Notas Nao Lancadas'].sum()
         nao_lancadas_3b = df_escola_filtrada['3B_Notas Nao Lancadas'].sum()
+        nao_lancadas_4b = df_escola_filtrada['4B_Notas Nao Lancadas'].sum()
 
         perc_1bim = (nao_lancadas_1b / total_1b * 100).round(1) if total_1b > 0 else 0
         perc_2bim = (nao_lancadas_2b / total_2b * 100).round(1) if total_2b > 0 else 0
         perc_3bim = (nao_lancadas_3b / total_3b * 100).round(1) if total_3b > 0 else 0
+        perc_4bim = (nao_lancadas_4b / total_4b * 100).round(1) if total_4b > 0 else 0
+        
 
 
         # Formatar nome da escola
@@ -735,7 +870,8 @@ try:
             'Escola': escola_formatada,
             '% Notas Não Lançadas - 1º Bimestre': perc_1bim,
             '% Notas Não Lançadas - 2º Bimestre': perc_2bim,
-            '% Notas Não Lançadas - 3º Bimestre': perc_3bim
+            '% Notas Não Lançadas - 3º Bimestre': perc_3bim,
+            '% Notas Não Lançadas - 4º Bimestre': perc_4bim
         })
     
     # Converter para DataFrame
@@ -751,7 +887,8 @@ try:
             options=[
                 '% Notas Não Lançadas - 1º Bimestre',
                 '% Notas Não Lançadas - 2º Bimestre', 
-                '% Notas Não Lançadas - 3º Bimestre'
+                '% Notas Não Lançadas - 3º Bimestre',
+                '% Notas Não Lançadas - 4º Bimestre'
             ],
             index=1
         )
