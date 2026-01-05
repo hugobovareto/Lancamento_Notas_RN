@@ -169,7 +169,7 @@ st.markdown("""
 st.write("")
 
 st.markdown("""
-            **⏱️ Última atualização**:  dados extraídos do SIGEduc em 18/12/2025.
+            **⏱️ Última atualização**:  dados extraídos do SIGEduc em 05/01/2026.
             """)
 
 st.write("")
